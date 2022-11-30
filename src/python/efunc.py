@@ -17,7 +17,10 @@
 from . import _efunc
 import sys
 
-class Char:
+class _CValue:
+    __CValue = True
+
+class Char (_CValue):
     size = 1
     
     def __init__ (self, value):
@@ -32,7 +35,7 @@ class Char:
     def to_raw (value):
         return ord(value).to_bytes(1, sys.byteorder, signed = False)
 
-class _Int:
+class _Int (_CValue):
     def __init__ (self, value):
         if type(value) != int:
             raise TypeError("Int64 must be an int")
@@ -101,7 +104,7 @@ class UInt64 (_Int):
     def from_raw (value):
         return UInt64(UInt64._from_raw(value))
 
-class Pointer:
+class Pointer (_CValue):
     size = 8
 
     def __init__ (self, addr, layers, final_type):
@@ -169,23 +172,31 @@ class String (Pointer):
     def read (self):
         return self.rawRead(self.len)
 
-class Function:
+class Function (_CValue):
     def __init__ (self, addr, ret_type, stack_start):
-        self.addr = addr
+        self.value = addr
         self.stack_start = stack_start
         self.ret_type = ret_type
     
     def __call__ (self, *args):
-        _efunc.setFuncCallSpecs(self.addr, len(args), (len(args) - self.stack_start) if self.stack_start > -1 else 0, self.stack_start)
+        _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.stack_start) if self.stack_start > -1 else 0, self.stack_start)
         
         for value in args:
-            _efunc.addFuncCallParam(value.value)
+            if hasattr(value, "__CValue"):
+                _efunc.addFuncCallParam(value.value)
+            else:
+                if type(value) == bytes:
+                    _efunc.addFuncCallParam(String(value).value)
+                elif type(value) == int:
+                    _efunc.addFuncCallParam(Int32(value).value)
+                else:
+                    raise TypeError("Invalid type for C type assumption")
         
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
 
         if self.ret_type == Pointer:
-            self.ret_type.addr = ret
+            self.ret_type.value = ret
             return self.ret_type
         
         return self.ret_type(ret)
