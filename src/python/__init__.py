@@ -14,6 +14,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import platform
+
+if ("arm64" not in platform.platform().lower()) or platform.system() != "Darwin":
+    raise SystemError("efunc is only compatible with arm-based darwin systems")
+
 from .efunc import *
 import warnings
 
