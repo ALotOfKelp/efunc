@@ -209,7 +209,7 @@ class Library:
         if not self.handle:
             raise LookupError(f"Failed to open library at path \"{path}\"")
     
-    def getFunction (self, name, ret_type, stack_start = -1):
+    def getFunction (self, name, ret_type = Int64, stack_start = -1):
         return Function(_efunc.loadSymbol(self.handle, name), ret_type, stack_start)
 
     def getVariable (self, name, value_type):
