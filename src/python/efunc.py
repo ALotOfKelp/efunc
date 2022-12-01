@@ -175,15 +175,20 @@ class String (Pointer):
     
     def read (self):
         return self.rawRead(self.len)
+    
+class FunctionDescriptor:
+    def __init__ (self, min_params, ret_type = Int64, varargs = False):
+        self.min_params = min_params
+        self.ret_type = ret_type
+        self.varargs = varargs
 
 class Function (_CValue):
-    def __init__ (self, addr, ret_type, stack_start):
+    def __init__ (self, addr, desc):
         self.value = addr
-        self.stack_start = stack_start
-        self.ret_type = ret_type
+        self.descriptor = desc
     
     def __call__ (self, *args):
-        _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.stack_start) if self.stack_start > -1 else 0, self.stack_start)
+        _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params)
         
         for value in args:
             if hasattr(value, "__CValue"):
@@ -199,11 +204,11 @@ class Function (_CValue):
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
 
-        if self.ret_type == Pointer:
-            self.ret_type.value = ret
-            return self.ret_type
+        if self.descriptor.ret_type == Pointer:
+            self.descriptor.ret_type.value = ret
+            return self.descriptor.ret_type
         
-        return self.ret_type(ret)
+        return self.descriptor.ret_type(ret)
 
 class Library:
     def __init__ (self, path):
@@ -213,8 +218,8 @@ class Library:
         if not self.handle:
             raise EFuncError()
     
-    def getFunction (self, name, ret_type = Int64, stack_start = -1):
-        func = Function(_efunc.loadSymbol(self.handle, name), ret_type, stack_start)
+    def getFunction (self, name, descriptor):
+        func = Function(_efunc.loadSymbol(self.handle, name), descriptor)
 
         if not func.value:
             raise EFuncError()
