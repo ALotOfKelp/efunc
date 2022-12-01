@@ -124,13 +124,13 @@ class Pointer (_CValue):
     
     def from_final (value):
         pointer = Pointer(_efunc.allocateMemory(value.size), 1, type(value))
-        pointer.write(value.value)
+        pointer.write(value)
 
         return pointer
     
     def from_pointer (value):
         pointer = Pointer(_efunc.allocateMemory(8), value.layers + 1, value.final_type)
-        pointer.write(value.value)
+        pointer.write(value)
 
         return pointer
     
