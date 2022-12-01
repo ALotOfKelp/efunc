@@ -164,6 +164,9 @@ class String (Pointer):
     size = 8
 
     def __init__ (self, value, c_string = True):
+        if type(value) == str:
+            value = value.encode()
+
         self.len = len(value)
 
         if c_string:
@@ -194,7 +197,7 @@ class Function (_CValue):
             if hasattr(value, "__CValue"):
                 _efunc.addFuncCallParam(value.value)
             else:
-                if type(value) == bytes:
+                if type(value) in [str, bytes]:
                     _efunc.addFuncCallParam(String(value).value)
                 elif type(value) == int:
                     _efunc.addFuncCallParam(Int32(value).value)
