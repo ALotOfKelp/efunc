@@ -33,10 +33,10 @@ class Char (_CValue):
         
         self.value = ord(value)
     
-    def from_raw (value):
+    def fromRaw (value):
         return Char(chr(int.from_bytes(value, sys.byteorder, signed = False)))
     
-    def to_raw (self):
+    def toRaw (self):
         return self.value.to_bytes(1, sys.byteorder, signed = False)
     
     def __str__ (self):
@@ -49,67 +49,67 @@ class _Int (_CValue):
 
         self.value = value
     
-    def _from_raw (value):
+    def _fromRaw (value):
         return (int.from_bytes(value, sys.byteorder, signed = True))
     
-    def to_raw (self):
+    def toRaw (self):
         return self.value.to_bytes(self.size, sys.byteorder, signed = self.signed)
 
 class Int8 (_Int):
     size = 1
     signed = True
 
-    def from_raw (value):
-        return Int8(Int8._from_raw(value))
+    def fromRaw (value):
+        return Int8(Int8._fromRaw(value))
 
 class Int16 (_Int):
     size = 2
     signed = True
 
-    def from_raw (value):
-        return Int16(Int16._from_raw(value))
+    def fromRaw (value):
+        return Int16(Int16._fromRaw(value))
 
 class Int32 (_Int):
     size = 4
     signed = True
 
-    def from_raw (value):
-        return Int32(Int32._from_raw(value))
+    def fromRaw (value):
+        return Int32(Int32._fromRaw(value))
 
 class Int64 (_Int):
     size = 8
     signed = True
 
-    def from_raw (value):
-        return Int64(Int64._from_raw(value))
+    def fromRaw (value):
+        return Int64(Int64._fromRaw(value))
 
 class UInt8 (_Int):
     size = 1
     signed = False
 
-    def from_raw (value):
-        return UInt8(UInt8._from_raw(value))
+    def fromRaw (value):
+        return UInt8(UInt8._fromRaw(value))
 
 class UInt16 (_Int):
     size = 2
     signed = False
 
-    def from_raw (value):
-        return UInt16(Int16._from_raw(value))
+    def fromRaw (value):
+        return UInt16(Int16._fromRaw(value))
 
 class UInt32 (_Int):
     size = 4
     signed = False
 
-    def from_raw (value):
-        return UInt32(UInt32._from_raw(value))
+    def fromRaw (value):
+        return UInt32(UInt32._fromRaw(value))
 
 class UInt64 (_Int):
     size = 8
     signed = False
 
-    def from_raw (value):
-        return UInt64(UInt64._from_raw(value))
+    def fromRaw (value):
+        return UInt64(UInt64._fromRaw(value))
 
 class Pointer (_CValue):
     size = 8
@@ -122,22 +122,22 @@ class Pointer (_CValue):
     def allocate (size):
         return Pointer(_efunc.allocateMemory(size), 1, None)
     
-    def from_final (value):
+    def fromFinal (value):
         pointer = Pointer(_efunc.allocateMemory(value.size), 1, type(value))
         pointer.write(value)
 
         return pointer
     
-    def from_pointer (value):
+    def fromPointer (value):
         pointer = Pointer(_efunc.allocateMemory(8), value.layers + 1, value.final_type)
         pointer.write(value)
 
         return pointer
     
-    def from_raw (value):
+    def fromRaw (value):
         return Pointer(int.from_bytes(value, sys.byteorder, signed = False))
     
-    def to_raw (self):
+    def toRaw (self):
         return int.to_bytes(self.value, 8, sys.byteorder, signed = False)
     
     def follow (self, offset = 0):
@@ -147,12 +147,12 @@ class Pointer (_CValue):
             if self.final_type == None:
                 raise ValueError("Cannot follow void pointer")
 
-            return self.final_type.from_raw(raw_value)
+            return self.final_type.fromRaw(raw_value)
         
-        return Pointer.from_raw(raw_value)
+        return Pointer.fromRaw(raw_value)
     
     def write (self, value):
-        return _efunc.writeMemory(self.value, value.to_raw(), value.size)
+        return _efunc.writeMemory(self.value, value.toRaw(), value.size)
     
     def rawWrite (self, value, size):
         return _efunc.writeMemory(self.value, value, size)
@@ -238,7 +238,7 @@ class Library:
         if type(value_type) == Pointer:
             value = Pointer(addr, value_type.layers + 1, value_type.final_type)
         else:
-            value = value_type.from_raw(_efunc.readMemory(addr, value_type.size))
+            value = value_type.fromRaw(_efunc.readMemory(addr, value_type.size))
         
         if not value.value:
             raise EFuncError()
