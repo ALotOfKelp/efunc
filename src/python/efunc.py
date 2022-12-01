@@ -31,13 +31,16 @@ class Char (_CValue):
         if type(value) != str or len(value) > 1:
             raise TypeError("Char must be a string of length 1")
         
-        self.value = value
+        self.value = ord(value)
     
     def from_raw (value):
-        return Char(chr(value))
+        return Char(chr(int.from_bytes(value, sys.byteorder, signed = False)))
     
-    def to_raw (value):
-        return ord(value).to_bytes(1, sys.byteorder, signed = False)
+    def to_raw (self):
+        return self.value.to_bytes(1, sys.byteorder, signed = False)
+    
+    def __str__ (self):
+        return chr(self.value)
 
 class _Int (_CValue):
     def __init__ (self, value):
@@ -138,9 +141,9 @@ class Pointer (_CValue):
         return int.to_bytes(self.value, 8, sys.byteorder, signed = False)
     
     def follow (self, offset = 0):
-        raw_value = _efunc.readMemory(self, self.value + offset, self.final_type.size)
+        raw_value = _efunc.readMemory(self.value + offset, self.final_type.size)
 
-        if len(self.references) == 1:
+        if self.layers == 1:
             if self.final_type == None:
                 raise ValueError("Cannot follow void pointer")
 
