@@ -17,6 +17,10 @@
 from . import _efunc
 import sys
 
+class EFuncError (Exception):
+    def __init__ (self):
+        Exception.__init__(self, _efunc.getLibraryError())
+
 class _CValue:
     __CValue = True
 
@@ -207,18 +211,26 @@ class Library:
         self.handle = _efunc.loadLibrary(path)
 
         if not self.handle:
-            raise LookupError(f"Failed to open library at path \"{path}\"")
+            raise EFuncError()
     
     def getFunction (self, name, ret_type = Int64, stack_start = -1):
-        return Function(_efunc.loadSymbol(self.handle, name), ret_type, stack_start)
+        func = Function(_efunc.loadSymbol(self.handle, name), ret_type, stack_start)
+
+        if not func.value:
+            raise EFuncError()
+        
+        return func
 
     def getVariable (self, name, value_type):
         addr = _efunc.loadSymbol(self.handle, name)
 
         if type(value_type) == Pointer:
-            return Pointer(addr, value_type.layers + 1, value_type.final_type)
+            value = Pointer(addr, value_type.layers + 1, value_type.final_type)
+        else:
+            value = value_type.from_raw(_efunc.readMemory(addr, value_type.size))
         
-        return value_type.from_raw(_efunc.readMemory(addr, value_type.size))
+        if not value.value:
+            raise EFuncError()
 
     def close (self):
         _efunc.closeLibrary(self.handle)
