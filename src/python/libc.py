@@ -1,3 +1,3 @@
-from . import efunc
+from . import types
 
-LIBC = efunc.Library("/usr/lib/libSystem.B.dylib")
+LIBC = types.Library("/usr/lib/libSystem.B.dylib")

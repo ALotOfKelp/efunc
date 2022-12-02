@@ -19,7 +19,8 @@ import platform
 if ("arm64" not in platform.platform().lower()) or platform.system() != "Darwin":
     raise SystemError("efunc is only compatible with arm-based darwin systems")
 
-from .efunc import *
+from .types import *
+from .libc import *
 import warnings
 
 warnings.filterwarnings("ignore", category = DeprecationWarning)
