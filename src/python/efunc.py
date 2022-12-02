@@ -182,6 +182,16 @@ class String (Pointer):
     def read (self):
         return self.rawRead(self.len)
     
+    def fromChar (value, c_string = True):
+        return String(str(value), c_string)
+    
+    def fromPointer (value, len):
+        string = String("", False)
+        string.len = len
+        string.value = value.value
+
+        return string
+    
 class FunctionDescriptor:
     def __init__ (self, min_params, ret_type = Int64, varargs = False):
         self.min_params = min_params
