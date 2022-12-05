@@ -200,14 +200,14 @@ class Pointer (_CValue):
         
         return Pointer.fromRaw(raw_value)
     
-    def write (self, value):
-        return _efunc.writeMemory(self.value, value.toRaw(), value.size)
+    def write (self, value, offset = 0):
+        return _efunc.writeMemory(self.value + offset, value.toRaw(), value.size)
     
-    def rawWrite (self, value, size):
-        return _efunc.writeMemory(self.value, value, size)
+    def rawWrite (self, value, size, offset = 0):
+        return _efunc.writeMemory(self.value + offset, value, size)
     
-    def rawRead (self, size):
-        return _efunc.readMemory(self.value, size)
+    def rawRead (self, size, offset = 0):
+        return _efunc.readMemory(self.value + offset, size)
     
     def free (self):
         return _efunc.freeMemory(self.value)
