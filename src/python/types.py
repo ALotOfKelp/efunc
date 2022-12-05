@@ -95,7 +95,7 @@ class UInt16 (_Int):
     signed = False
 
     def fromRaw (value):
-        return UInt16(Int16._fromRaw(value))
+        return UInt16(UInt16._fromRaw(value))
 
 class UInt32 (_Int):
     size = 4
