@@ -26,8 +26,9 @@ uint64_t efunc_nparams;
 uint64_t efunc_stack_params;
 uint64_t efunc_stack_params_start;
 uint64_t efunc_param_index;
+uint8_t efunc_float_result;
 
-extern void *efunc_callFunc (void *func, void *params[], uint64_t nparams, uint8_t stack_params, uint64_t stack_params_start);
+extern void *efunc_callFunc (void *func, void *params[], uint64_t nparams, uint8_t stack_params, uint64_t stack_params_start, uint8_t float_result);
 
 static PyObject *method_loadLibrary (PyObject *self, PyObject *args) {
     char *name;
@@ -110,7 +111,7 @@ static PyObject *method_freeMemory (PyObject *self, PyObject *args) {
 }
 
 static PyObject *method_setFuncCallSpecs (PyObject *self, PyObject *args) {
-    if (!PyArg_ParseTuple(args, "LLLL", &efunc_func, &efunc_nparams, &efunc_stack_params, &efunc_stack_params_start)) {
+    if (!PyArg_ParseTuple(args, "LLLLL", &efunc_func, &efunc_nparams, &efunc_stack_params, &efunc_stack_params_start, &efunc_float_result)) {
         return NULL;
     }
 
@@ -136,7 +137,7 @@ static PyObject *method_callFunc (PyObject *self) {
         return NULL;
     }
 
-    return PyLong_FromLong(efunc_callFunc(efunc_func, efunc_params, efunc_nparams, efunc_stack_params, efunc_stack_params_start));
+    return PyLong_FromLong(efunc_callFunc(efunc_func, efunc_params, efunc_nparams, efunc_stack_params, efunc_stack_params_start, efunc_float_result));
 }
 
 static PyObject *method_cleanCallSpecs (PyObject *self) {

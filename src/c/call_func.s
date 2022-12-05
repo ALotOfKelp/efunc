@@ -19,6 +19,11 @@
 
 .globl _efunc_callFunc
 _efunc_callFunc:
+    sub sp, sp, #32
+    stp x29, x30, [sp]
+    stp x27, x28, [sp, #16]
+    mov x27, x5
+
     mov x5, xzr
     cmp x3, #0
     b.eq L._efunc_callFunc.no_stack
@@ -42,9 +47,6 @@ L._efunc_callFunc.no_stack:
     mov x12, xzr
 
 L._efunc_callFunc.odd_stack:
-    sub sp, sp, #32
-    stp x29, x30, [sp]
-    str x28, [sp, #16]
     mov x29, sp
     sub x29, x29, x12
     sub sp, sp, x5
@@ -78,51 +80,66 @@ L._efunc_callFunc.loop1.done:
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x0, [x9]
+    ldr d0, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x1, [x9]
+    ldr d1, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x2, [x9]
+    ldr d2, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x3, [x9]
+    ldr d3, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x4, [x9]
+    ldr d4, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x5, [x9]
+    ldr d5, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x6, [x9]
+    ldr d6, [x9]
     add x9, x9, #8
 
     cmp x9, x11
     b.eq L._efunc_callFunc.done
     ldr x7, [x9]
+    ldr d7, [x9]
     add x9, x9, #8
 
 L._efunc_callFunc.done:
     mov x28, x12
     blr x8
 
+    cmp x27, #0
+    b.eq .+20
+    sub sp, sp, #16
+    str d0, [sp]
+    ldr x0, [sp]
+    add sp, sp, #16
+
     mov sp, x29
     add sp, sp, x28
     ldp x29, x30, [sp]
-    ldr x28, [sp, #16]
+    ldp x27, x28, [sp, #16]
     add sp, sp, #32
 
     ret

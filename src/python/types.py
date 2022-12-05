@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import _efunc
-import sys
+import sys, struct
 
 class EFuncError (Exception):
     def __init__ (self):
@@ -111,6 +111,40 @@ class UInt64 (_Int):
     def fromRaw (value):
         return UInt64(UInt64._fromRaw(value))
 
+class _Float:
+    _float = True
+
+    def __init__ (self, value):
+        if type(value) != float:
+            raise TypeError("Float value must be float")
+        
+        self.value = struct.unpack("Q", struct.pack(self._fcode, value))[0]
+    
+    def getValue (self):
+        return struct.unpack(self._fcode, struct.pack("Q", self.value))[0]
+    
+    def _fromRaw (value, _icode):
+        return struct.unpack(_icode, value)[0]
+    
+    def toRaw (self):
+        return struct.pack(self._icode, self.value)
+
+class Float (_Float):
+    size = 4
+    _icode = "I"
+    _fcode = "f"
+
+    def fromRaw (value):
+        return Float(Float._fromRaw(value, Float._icode))
+    
+class Double (_Float):
+    size = 8
+    _icode = "Q"
+    _fcode = "d"
+
+    def fromRaw (value):
+        return Double(Double._fromRaw(value, Double._icode))
+
 class Pointer (_CValue):
     size = 8
 
@@ -204,7 +238,7 @@ class Function (_CValue):
         self.descriptor = desc
     
     def __call__ (self, *args):
-        _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params)
+        _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params, int(hasattr(self.descriptor.ret_type, "_float")))
         
         for value in args:
             if hasattr(value, "__CValue"):
@@ -213,16 +247,23 @@ class Function (_CValue):
                 if type(value) in [str, bytes]:
                     _efunc.addFuncCallParam(String(value).value)
                 elif type(value) == int:
-                    _efunc.addFuncCallParam(Int32(value).value)
+                    _efunc.addFuncCallParam(Int64(value).value)
+                elif type(value) == float:
+                    _efunc.addFuncCallParam(Double(value).value)
                 else:
                     raise TypeError("Invalid type for C type assumption")
         
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
 
-        if self.descriptor.ret_type == Pointer:
+        if type(self.descriptor.ret_type) == Pointer:
             self.descriptor.ret_type.value = ret
             return self.descriptor.ret_type
+        
+        if hasattr(self.descriptor.ret_type, "_float"):
+            temp = self.descriptor.ret_type(1.0)
+            temp.value = ret
+            return temp
         
         return self.descriptor.ret_type(ret)
 
