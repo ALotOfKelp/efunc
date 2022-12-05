@@ -45,7 +45,7 @@ class Char (_CValue):
 class _Int (_CValue):
     def __init__ (self, value):
         if type(value) != int:
-            raise TypeError("Int64 must be an int")
+            raise TypeError("Int value must be an int")
 
         self.value = value
     
