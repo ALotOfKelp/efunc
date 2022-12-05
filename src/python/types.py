@@ -33,14 +33,20 @@ class Char (_CValue):
         
         self.value = ord(value)
     
+    def __str__ (self):
+        return chr(self.value)
+    
     def fromRaw (value):
         return Char(chr(int.from_bytes(value, sys.byteorder, signed = False)))
     
     def toRaw (self):
         return self.value.to_bytes(1, sys.byteorder, signed = False)
     
-    def __str__ (self):
+    def getValue (self):
         return chr(self.value)
+    
+    def setValue (self, value):
+        self.__init__(value)
 
 class _Int (_CValue):
     def __init__ (self, value):
@@ -54,6 +60,12 @@ class _Int (_CValue):
     
     def toRaw (self):
         return self.value.to_bytes(self.size, sys.byteorder, signed = self.signed)
+    
+    def getValue (self):
+        return self.value
+    
+    def setValue (self, value):
+        self.__init__(value)
 
 class Int8 (_Int):
     size = 1
@@ -111,7 +123,7 @@ class UInt64 (_Int):
     def fromRaw (value):
         return UInt64(UInt64._fromRaw(value))
 
-class _Float:
+class _Float (_CValue):
     _float = True
 
     def __init__ (self, value):
@@ -120,14 +132,17 @@ class _Float:
         
         self.value = struct.unpack("Q", struct.pack(self._fcode, value))[0]
     
-    def getValue (self):
-        return struct.unpack(self._fcode, struct.pack("Q", self.value))[0]
-    
     def _fromRaw (value, _icode):
         return struct.unpack(_icode, value)[0]
     
     def toRaw (self):
         return struct.pack(self._icode, self.value)
+    
+    def getValue (self):
+        return struct.unpack(self._fcode, struct.pack("Q", self.value))[0]
+    
+    def setValue (self, value):
+        self.__init__(value)
 
 class Float (_Float):
     size = 4
@@ -196,6 +211,15 @@ class Pointer (_CValue):
     
     def free (self):
         return _efunc.freeMemory(self.value)
+    
+    def getValue (self):
+        return self.value
+    
+    def setValue (self, value):
+        if type(value) != int:
+            raise TypeError("Pointer address must be integer")
+
+        self.value = value
 
 class String (Pointer):
     size = 8
@@ -225,6 +249,12 @@ class String (Pointer):
         string.value = value.value
 
         return string
+    
+    def getValue (self):
+        return self.read()
+    
+    def setValue (self, value):
+        self.__init__(value, self.c_string)
     
 class FunctionDescriptor:
     def __init__ (self, min_params, ret_type = Int64, varargs = False):
@@ -266,6 +296,12 @@ class Function (_CValue):
             return temp
         
         return self.descriptor.ret_type(ret)
+    
+    def getValue (self):
+        return self.value
+    
+    def setValue (self, value):
+        self.value = value
 
 class Library:
     def __init__ (self, path):
