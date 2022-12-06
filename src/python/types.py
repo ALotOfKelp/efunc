@@ -270,7 +270,77 @@ class String (Pointer):
     
     def setValue (self, value):
         self.__init__(value, self.c_string)
+
+class Member:
+    def __init__ (self, name, type, size = None):
+        self.name = name
+        self.type = type
+        self.size = size if size else type.size
+
+class StructInstance (Pointer):
+    size = 8
+
+    def __init__ (self, type, **values):
+        self.type = type
+        Pointer.__init__(self, _efunc.allocateMemory(type.calculateSize()), 1, None)
+
+        for i in values:
+            if hasattr(values[i], "_CValue"):
+                self.write(values[i], type.calculateOffset(i))
+            else:
+                self.write(self.type.getMemberType(i)(values[i]), type.calculateOffset(i))
     
+    def getMember (self, name):
+        for i in self.type.members:
+            if i.name == name:
+                return i.type.fromRaw(self.rawRead(i.size, self.type.calculateOffset(name)))
+    
+        raise AttributeError("No such member")
+    
+    def setMember (self, name, value):
+        for i in self.type.members:
+            if i.name == name:
+                self.rawWrite(value, self.type.calculateOffset(name))
+                return None
+        
+        raise AttributeError("No such member")
+
+class StructType:
+    def __init__ (self, members):
+        self.members = members
+    
+    def generateInstance (self, **values):
+        return StructInstance(self, **values)
+
+    def calculateSize (self):
+        size = 0
+
+        for i in self.members:
+            size += i.size
+        
+        return size
+    
+    def calculateOffset (self, name):
+        offset = 0
+
+        for i in self.members:
+            if i.name == name:
+                break
+            
+            offset += i.size
+        
+        if offset == self.calculateSize():
+            raise AttributeError("No such member")
+        
+        return offset
+    
+    def getMemberType (self, name):
+        for i in self.members:
+            if i.name == name:
+                return i.type
+        
+        raise AttributeError("No such member")
+        
 class FunctionDescriptor:
     def __init__ (self, min_params, ret_type = Int64, varargs = False):
         self.min_params = min_params
