@@ -229,9 +229,9 @@ class Pointer (_CValue):
 
         self.value = value
     
-    def cast (self, layers, final_type):
-        self.layers = layers
-        self.final_type = final_type
+    def cast (self, new_type):
+        self.layers = new_type.layers
+        self.final_type = new_type.final_type
     
     def getType (self):
         return PointerType(self.layers, self.final_type)
