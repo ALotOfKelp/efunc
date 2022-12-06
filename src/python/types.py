@@ -22,7 +22,7 @@ class EFuncError (Exception):
         Exception.__init__(self, _efunc.getLibraryError())
 
 class _CValue:
-    __CValue = True
+    _CValue = True
 
 class Char (_CValue):
     size = 1
@@ -286,7 +286,7 @@ class Function (_CValue):
         _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params, int(hasattr(self.descriptor.ret_type, "_float")))
         
         for value in args:
-            if hasattr(value, "__CValue"):
+            if hasattr(value, "_CValue"):
                 _efunc.addFuncCallParam(value.value)
             else:
                 if type(value) in [str, bytes]:
