@@ -17,8 +17,8 @@
 from . import _efunc
 import sys, struct
 
-def _cvalue (value):
-    if hasattr(value, "_CValue"):
+def cvalue (value):
+    if hasattr(value, "cvalue"):
         return value
     
     if type(value) in [str, bytes]:
@@ -34,10 +34,10 @@ class EFuncError (Exception):
     def __init__ (self):
         Exception.__init__(self, _efunc.getLibraryError())
 
-class _CValue:
-    _CValue = True
+class cvalue:
+    cvalue = True
 
-class Char (_CValue):
+class Char (cvalue):
     size = 1
     
     def __init__ (self, value):
@@ -48,6 +48,15 @@ class Char (_CValue):
     
     def __str__ (self):
         return chr(self.value)
+    
+    def __repr__ (self):
+        return str(self)
+    
+    def __int__ (self):
+        return self.value
+    
+    def __float__ (self):
+        return float(int(self))
     
     def fromRaw (value):
         return Char(chr(int.from_bytes(value, sys.byteorder, signed = False)))
@@ -61,12 +70,24 @@ class Char (_CValue):
     def setValue (self, value):
         self.__init__(value)
 
-class _Int (_CValue):
+class _Int (cvalue):
     def __init__ (self, value):
         if type(value) != int:
             raise TypeError("Int value must be an int")
 
         self.value = value
+    
+    def __str__ (self):
+        return str(self.value)
+    
+    def __repr__ (self):
+        return str(self)
+    
+    def __int__ (self):
+        return self.value
+    
+    def __float__ (self):
+        return float(int(self))
     
     def _fromRaw (value):
         return (int.from_bytes(value, sys.byteorder, signed = True))
@@ -136,7 +157,7 @@ class UInt64 (_Int):
     def fromRaw (value):
         return UInt64(UInt64._fromRaw(value))
 
-class _Float (_CValue):
+class _Float (cvalue):
     _float = True
 
     def __init__ (self, value):
@@ -144,6 +165,18 @@ class _Float (_CValue):
             raise TypeError("Float value must be float")
         
         self.value = struct.unpack("Q", struct.pack(self._fcode, value))[0]
+    
+    def __str__ (self):
+        return str(float(self))
+    
+    def __repr__ (self):
+        return str(self)
+    
+    def __int__ (self):
+        return int(float(self))
+    
+    def __float__ (self):
+        return self.getValue()
     
     def _fromRaw (value, _icode):
         return struct.unpack(_icode, value)[0]
@@ -184,7 +217,7 @@ class PointerType:
     def fromRaw (self, value):
         return Pointer(int.from_bytes(value, sys.byteorder, signed = False), self.layers, self.final_type)
 
-class Pointer (_CValue):
+class Pointer (cvalue):
     size = 8
 
     def __init__ (self, addr, layers, final_type):
@@ -192,11 +225,23 @@ class Pointer (_CValue):
         self.layers = layers
         self.final_type = final_type
     
+    def __str__ (self):
+        return str(self.value)
+    
+    def __repr__ (self):
+        return str(self)
+    
+    def __int__ (self):
+        return self.value
+    
+    def __float__ (self):
+        return float(self.value)
+    
     def allocate (size):
         return Pointer(_efunc.allocateMemory(size), 1, None)
     
     def fromFinal (value):
-        pointer = Pointer(_efunc.allocateMemory(_cvalue(value.size)), 1, type(value))
+        pointer = Pointer(_efunc.allocateMemory(cvalue(value.size)), 1, type(value))
         pointer.write(value)
 
         return pointer
@@ -222,7 +267,7 @@ class Pointer (_CValue):
         return Pointer.fromRaw(raw_value)
     
     def write (self, value, offset = 0):
-        return _efunc.writeMemory(self.value + offset, _cvalue(value).toRaw(), value.size)
+        return _efunc.writeMemory(self.value + offset, cvalue(value).toRaw(), value.size)
     
     def rawWrite (self, value, size, offset = 0):
         return _efunc.writeMemory(self.value + offset, value, size)
@@ -265,6 +310,12 @@ class String (Pointer):
         Pointer.__init__(self, _efunc.allocateMemory(len(value) + int(c_string)), 1, Char)
         self.rawWrite(value, len(value))
     
+    def __str__ (self):
+        return self.read().decode()
+    
+    def __repr__ (self):
+        return str(self)
+    
     def read (self):
         return self.rawRead(self.len)
     
@@ -274,7 +325,7 @@ class String (Pointer):
     def fromPointer (value, len):
         string = String("", False)
         string.len = len
-        string.value = _cvalue(value).value
+        string.value = cvalue(value).value
 
         return string
     
@@ -298,7 +349,7 @@ class StructInstance (Pointer):
         Pointer.__init__(self, _efunc.allocateMemory(type.calculateSize()), 1, None)
 
         for i in values:
-            if hasattr(values[i], "_CValue"):
+            if hasattr(values[i], "cvalue"):
                 self.write(values[i], type.calculateOffset(i))
             else:
                 self.write(self.type.getMemberType(i)(values[i]), type.calculateOffset(i))
@@ -360,16 +411,28 @@ class FunctionDescriptor:
         self.ret_type = ret_type
         self.varargs = varargs
 
-class Function (_CValue):
+class Function (cvalue):
     def __init__ (self, addr, desc):
         self.value = addr
         self.descriptor = desc
+    
+    def __str__ (self):
+        return str(self.value)
+    
+    def __repr__ (self):
+        return str(self)
+    
+    def __int__ (self):
+        return self.value
+    
+    def __float__ (self):
+        return float(int(self))
     
     def __call__ (self, *args):
         _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params, int(hasattr(self.descriptor.ret_type, "_float")))
         
         for value in args:
-            _efunc.addFuncCallParam(_cvalue(value))
+            _efunc.addFuncCallParam(cvalue(value))
         
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
