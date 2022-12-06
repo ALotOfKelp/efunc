@@ -17,6 +17,19 @@
 from . import _efunc
 import sys, struct
 
+def _cvalue (value):
+    if hasattr(value, "_CValue"):
+        return value
+    
+    if type(value) in [str, bytes]:
+        return String(value)
+    elif type(value) == int:
+        return Int64(value)
+    elif type(value) == float:
+        return Double(value)
+    
+    raise TypeError("Invalid type for C type assumption")
+
 class EFuncError (Exception):
     def __init__ (self):
         Exception.__init__(self, _efunc.getLibraryError())
@@ -183,7 +196,7 @@ class Pointer (_CValue):
         return Pointer(_efunc.allocateMemory(size), 1, None)
     
     def fromFinal (value):
-        pointer = Pointer(_efunc.allocateMemory(value.size), 1, type(value))
+        pointer = Pointer(_efunc.allocateMemory(_cvalue(value.size)), 1, type(value))
         pointer.write(value)
 
         return pointer
@@ -209,7 +222,7 @@ class Pointer (_CValue):
         return Pointer.fromRaw(raw_value)
     
     def write (self, value, offset = 0):
-        return _efunc.writeMemory(self.value + offset, value.toRaw(), value.size)
+        return _efunc.writeMemory(self.value + offset, _cvalue(value).toRaw(), value.size)
     
     def rawWrite (self, value, size, offset = 0):
         return _efunc.writeMemory(self.value + offset, value, size)
@@ -261,7 +274,7 @@ class String (Pointer):
     def fromPointer (value, len):
         string = String("", False)
         string.len = len
-        string.value = value.value
+        string.value = _cvalue(value).value
 
         return string
     
@@ -356,17 +369,7 @@ class Function (_CValue):
         _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params, int(hasattr(self.descriptor.ret_type, "_float")))
         
         for value in args:
-            if hasattr(value, "_CValue"):
-                _efunc.addFuncCallParam(value.value)
-            else:
-                if type(value) in [str, bytes]:
-                    _efunc.addFuncCallParam(String(value).value)
-                elif type(value) == int:
-                    _efunc.addFuncCallParam(Int64(value).value)
-                elif type(value) == float:
-                    _efunc.addFuncCallParam(Double(value).value)
-                else:
-                    raise TypeError("Invalid type for C type assumption")
+            _efunc.addFuncCallParam(_cvalue(value))
         
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
