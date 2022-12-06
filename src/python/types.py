@@ -160,6 +160,17 @@ class Double (_Float):
     def fromRaw (value):
         return Double(Double._fromRaw(value, Double._icode))
 
+class PointerType:
+    def __init__ (self, layers, final_type):
+        self.layers = layers
+        self.final_type = final_type
+    
+    def __call__ (self, addr):
+        return Pointer(addr, self.layers, self.final_type)
+    
+    def fromRaw (self, value):
+        return Pointer(int.from_bytes(value, sys.byteorder, signed = False), self.layers, self.final_type)
+
 class Pointer (_CValue):
     size = 8
 
@@ -182,9 +193,6 @@ class Pointer (_CValue):
         pointer.write(value)
 
         return pointer
-    
-    def fromRaw (value):
-        return Pointer(int.from_bytes(value, sys.byteorder, signed = False))
     
     def toRaw (self):
         return int.to_bytes(self.value, 8, sys.byteorder, signed = False)
@@ -220,6 +228,13 @@ class Pointer (_CValue):
             raise TypeError("Pointer address must be integer")
 
         self.value = value
+    
+    def cast (self, layers, final_type):
+        self.layers = layers
+        self.final_type = final_type
+    
+    def getType (self):
+        return PointerType(self.layers, self.final_type)
 
 class String (Pointer):
     size = 8
@@ -285,10 +300,6 @@ class Function (_CValue):
         
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
-
-        if type(self.descriptor.ret_type) == Pointer:
-            self.descriptor.ret_type.value = ret
-            return self.descriptor.ret_type
         
         if hasattr(self.descriptor.ret_type, "_float"):
             temp = self.descriptor.ret_type(1.0)
@@ -321,11 +332,7 @@ class Library:
 
     def getVariable (self, name, value_type):
         addr = _efunc.loadSymbol(self.handle, name)
-
-        if type(value_type) == Pointer:
-            value = Pointer(addr, value_type.layers + 1, value_type.final_type)
-        else:
-            value = value_type.fromRaw(_efunc.readMemory(addr, value_type.size))
+        value = value_type.fromRaw(_efunc.readMemory(addr, value_type.size))
         
         if not value.value:
             raise EFuncError()
