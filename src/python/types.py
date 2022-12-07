@@ -1,4 +1,4 @@
-#    efunc.py -- External function calling for python
+#    types.py -- External types for python
 #    Copyright © 2022 Iskander Boutel
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -29,10 +29,6 @@ def cvalue (value):
         return Double(value)
     
     raise TypeError("Invalid type for C type assumption")
-
-class EFuncError (Exception):
-    def __init__ (self):
-        Exception.__init__(self, _efunc.getLibraryError())
 
 class cvalue:
     cvalue = True
@@ -499,29 +495,3 @@ class Function (cvalue):
     
     def setValue (self, value):
         self.value = value
-
-class Library:
-    def __init__ (self, path):
-        self.path = path
-        self.handle = _efunc.loadLibrary(path)
-
-        if not self.handle:
-            raise EFuncError()
-    
-    def getFunction (self, name, descriptor):
-        func = Function(_efunc.loadSymbol(self.handle, name), descriptor)
-
-        if not func.value:
-            raise EFuncError()
-        
-        return func
-
-    def getVariable (self, name, value_type):
-        addr = _efunc.loadSymbol(self.handle, name)
-        value = value_type.fromRaw(_efunc.readMemory(addr, value_type.size))
-        
-        if not value.value:
-            raise EFuncError()
-
-    def close (self):
-        _efunc.closeLibrary(self.handle)
