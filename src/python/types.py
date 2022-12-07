@@ -404,6 +404,56 @@ class StructType:
                 return i.type
         
         raise AttributeError("No such member")
+
+class UnionInstance (Pointer):
+    def __init__ (self, type, value):
+        self.type = type
+        Pointer.__init__(self, _efunc.allocateMemory(type.calculateSize()), 1, None)
+        
+        for i in type.members:
+            if i.type == type(value):
+                self.setMember(i.name, value)
+                return
+        
+        raise TypeError("No member with the provided type is present within the union")
+    
+    def getMember (self, name):
+        for i in self.type.members:
+            if i.name == name:
+                return i.type.fromRaw(self.rawRead(i.size))
+    
+        raise AttributeError("No such member")
+    
+    def setMember (self, name, value):
+        for i in self.type.members:
+            if i.name == name:
+                self.write(cvalue(value))
+                return
+        
+        raise AttributeError("No such member")
+
+class UnionType:
+    def __init__ (self, members):
+        self.members = members
+    
+    def generateInstance(self, value):
+        return UnionInstance(self, value)
+    
+    def calculateSize (self):
+        size = 0
+
+        for i in self.members:
+            if i.size > size:
+                size = i.size
+        
+        return size
+    
+    def getMemberType (self, name):
+        for i in self.members:
+            if i.name == name:
+                return i.type
+        
+        raise AttributeError("No such member")
         
 class FunctionDescriptor:
     def __init__ (self, min_params, ret_type = Int64, varargs = False):
