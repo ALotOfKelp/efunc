@@ -364,8 +364,8 @@ class StructInstance (Pointer):
     def setMember (self, name, value):
         for i in self.type.members:
             if i.name == name:
-                self.rawWrite(value, self.type.calculateOffset(name))
-                return None
+                self.write(cvalue(value), self.type.calculateOffset(name))
+                return
         
         raise AttributeError("No such member")
 
