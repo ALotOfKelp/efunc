@@ -203,6 +203,8 @@ class Double (_Float):
         return Double(Double._fromRaw(value, Double._icode))
 
 class PointerType:
+    size = 8
+
     def __init__ (self, layers, final_type):
         self.layers = layers
         self.final_type = final_type
