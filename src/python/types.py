@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import _efunc
-import sys, struct
+import sys, struct, builtins
 
 def cvalue (value):
     if hasattr(value, "cvalue"):
@@ -30,10 +30,10 @@ def cvalue (value):
     
     raise TypeError("Invalid type for C type assumption")
 
-class cvalue:
+class CValue:
     cvalue = True
 
-class Char (cvalue):
+class Char (CValue):
     size = 1
     
     def __init__ (self, value):
@@ -66,7 +66,7 @@ class Char (cvalue):
     def setValue (self, value):
         self.__init__(value)
 
-class _Int (cvalue):
+class _Int (CValue):
     def __init__ (self, value):
         if type(value) != int:
             raise TypeError("Int value must be an int")
@@ -85,8 +85,8 @@ class _Int (cvalue):
     def __float__ (self):
         return float(int(self))
     
-    def _fromRaw (value):
-        return (int.from_bytes(value, sys.byteorder, signed = True))
+    def _fromRaw (value, signed):
+        return (int.from_bytes(value, sys.byteorder, signed = signed))
     
     def toRaw (self):
         return self.value.to_bytes(self.size, sys.byteorder, signed = self.signed)
@@ -102,58 +102,58 @@ class Int8 (_Int):
     signed = True
 
     def fromRaw (value):
-        return Int8(Int8._fromRaw(value))
+        return Int8(Int8._fromRaw(value, Int8.signed))
 
 class Int16 (_Int):
     size = 2
     signed = True
 
     def fromRaw (value):
-        return Int16(Int16._fromRaw(value))
+        return Int16(Int16._fromRaw(value, Int16.signed))
 
 class Int32 (_Int):
     size = 4
     signed = True
 
     def fromRaw (value):
-        return Int32(Int32._fromRaw(value))
+        return Int32(Int32._fromRaw(value, Int32.signed))
 
 class Int64 (_Int):
     size = 8
     signed = True
 
     def fromRaw (value):
-        return Int64(Int64._fromRaw(value))
+        return Int64(Int64._fromRaw(value, Int64.signed))
 
 class UInt8 (_Int):
     size = 1
     signed = False
 
     def fromRaw (value):
-        return UInt8(UInt8._fromRaw(value))
+        return UInt8(UInt8._fromRaw(value, UInt8.signed))
 
 class UInt16 (_Int):
     size = 2
     signed = False
 
     def fromRaw (value):
-        return UInt16(UInt16._fromRaw(value))
+        return UInt16(UInt16._fromRaw(value, UInt16.signed))
 
 class UInt32 (_Int):
     size = 4
     signed = False
 
     def fromRaw (value):
-        return UInt32(UInt32._fromRaw(value))
+        return UInt32(UInt32._fromRaw(value, UInt32.signed))
 
 class UInt64 (_Int):
     size = 8
     signed = False
 
     def fromRaw (value):
-        return UInt64(UInt64._fromRaw(value))
+        return UInt64(UInt64._fromRaw(value, UInt64.signed))
 
-class _Float (cvalue):
+class _Float (CValue):
     _float = True
 
     def __init__ (self, value):
@@ -214,8 +214,14 @@ class PointerType:
     
     def fromRaw (self, value):
         return Pointer(int.from_bytes(value, sys.byteorder, signed = False), self.layers, self.final_type)
+    
+    def generate (self):
+        if self.layers == 1:
+            return Pointer(_efunc.allocateMemory(self.final_type.size), 1, self.final_type)
+        
+        return Pointer(_efunc.allocateMemory(8), self.layers, self.final_type)
 
-class Pointer (cvalue):
+class Pointer (CValue):
     size = 8
 
     def __init__ (self, addr, layers, final_type):
@@ -234,9 +240,6 @@ class Pointer (cvalue):
     
     def __float__ (self):
         return float(self.value)
-    
-    def allocate (size):
-        return Pointer(_efunc.allocateMemory(size), 1, None)
     
     def fromFinal (value):
         pointer = Pointer(_efunc.allocateMemory(cvalue(value.size)), 1, type(value))
@@ -265,7 +268,7 @@ class Pointer (cvalue):
         return Pointer.fromRaw(raw_value)
     
     def write (self, value, offset = 0):
-        return _efunc.writeMemory(self.value + offset, cvalue(value).toRaw(), value.size)
+        return _efunc.writeMemory(self.value + offset, cvalue(value).toRaw(), cvalue(value).size)
     
     def rawWrite (self, value, size, offset = 0):
         return _efunc.writeMemory(self.value + offset, value, size)
@@ -295,7 +298,21 @@ class Pointer (cvalue):
 class String (Pointer):
     size = 8
 
-    def __init__ (self, value, c_string = True):
+    def __init__ (self, addr, c_string = True):
+        if type(addr) == str:
+            self._fromPyString(addr)
+            return
+
+        Pointer.__init__(self, addr, 1, Char)
+        self.len = -1
+    
+    def __str__ (self):
+        return self.read().decode()
+    
+    def __repr__ (self):
+        return str(self)
+    
+    def _fromPyString (self, value, c_string = True):
         if type(value) == str:
             value = value.encode()
 
@@ -308,14 +325,24 @@ class String (Pointer):
         Pointer.__init__(self, _efunc.allocateMemory(len(value) + int(c_string)), 1, Char)
         self.rawWrite(value, len(value))
     
-    def __str__ (self):
-        return self.read().decode()
+    def calculateLength (self, set = True):
+        len = -1
+        byte = b'a'
+
+        while byte != b'\0':
+            len += 1
+            byte = self.follow(len)
+        
+        if set:
+            self.len = len
+
+        return len
     
-    def __repr__ (self):
-        return str(self)
-    
-    def read (self):
-        return self.rawRead(self.len)
+    def read (self, offset = 0):
+        if self.len >= 0:
+            return self.rawRead(self.len - offset, offset)
+        
+        return self.rawRead(self.calculateLength(False) - offset, offset)
     
     def fromChar (value, c_string = True):
         return String(str(value), c_string)
@@ -332,47 +359,83 @@ class String (Pointer):
     
     def setValue (self, value):
         self.__init__(value, self.c_string)
+    
+    def fromRaw (value):
+        return String(int.from_bytes(value, sys.byteorder, signed = False))
 
 class Member:
-    def __init__ (self, name, type, size = None):
+    def __init__ (self, name, type, inline = False, size = None):
         self.name = name
         self.type = type
-        self.size = size if size else type.size
+        self.inline = inline
+
+        if inline:
+            if builtins.type(type) in [StructType, UnionType]:
+                self.size = type.calculateSize()
+            elif type == String:
+                if not size:
+                    raise ValueError("Size parameter must be set for inline string member")
+
+                self.size = size
+            else:
+                self.size = size if size else type.size
+        else:
+            self.size = size if size else type.size
 
 class StructInstance (Pointer):
     size = 8
 
-    def __init__ (self, type, **values):
+    def __init__ (self, value):
+        Pointer.__init__(self, value, 1, None)
+
+    def _generate (self, type, **values):
         self.type = type
         Pointer.__init__(self, _efunc.allocateMemory(type.calculateSize()), 1, None)
 
         for i in values:
-            if hasattr(values[i], "cvalue"):
-                self.write(values[i], type.calculateOffset(i))
-            else:
-                self.write(self.type.getMemberType(i)(values[i]), type.calculateOffset(i))
+            self.setMember(i, values[i])
     
     def getMember (self, name):
-        for i in self.type.members:
-            if i.name == name:
-                return i.type.fromRaw(self.rawRead(i.size, self.type.calculateOffset(name)))
-    
-        raise AttributeError("No such member")
+        member = self.type.getMember(name)
+        offset = self.type.calculateOffset(name)
+
+        if member.inline:
+            instance = member.type(self.value + offset)
+
+            if type(instance) == String:
+                instance.len = member.size
+            
+            return instance
+
+        return member.type.fromRaw(self.rawRead(member.size, offset))
     
     def setMember (self, name, value):
-        for i in self.type.members:
-            if i.name == name:
-                self.write(cvalue(value), self.type.calculateOffset(name))
-                return
-        
-        raise AttributeError("No such member")
+        member = self.type.getMember(name)
+        offset = self.type.calculateOffset(name)
+
+        if member.inline:
+            return self.rawWrite(cvalue(value).rawRead(member.size), member.size, offset)
+
+        return self.write(cvalue(value), offset)
+    
+    def toRaw (self):
+        return self.rawRead(self.type.calculateSize())
 
 class StructType:
     def __init__ (self, members):
         self.members = members
     
+    def __call__ (self, addr):
+        instance = StructInstance(addr)
+        instance.type = self
+
+        return instance
+    
     def generateInstance (self, **values):
-        return StructInstance(self, **values)
+        instance = StructInstance(0)
+        instance._generate(self, **values)
+
+        return instance
 
     def calculateSize (self):
         size = 0
@@ -396,15 +459,24 @@ class StructType:
         
         return offset
     
-    def getMemberType (self, name):
+    def getMember (self, name):
         for i in self.members:
             if i.name == name:
-                return i.type
+                return i
         
         raise AttributeError("No such member")
+    
+    def fromRaw (self, value):
+        instance = StructInstance(self)
+        instance.rawWrite(value, len(value))
+
+        return instance
 
 class UnionInstance (Pointer):
-    def __init__ (self, type, value):
+    def __init__ (self, value):
+        Pointer.__init__(self, value, 1, None)
+
+    def _generate (self, type, value):
         self.type = type
         Pointer.__init__(self, _efunc.allocateMemory(type.calculateSize()), 1, None)
         
@@ -429,13 +501,25 @@ class UnionInstance (Pointer):
                 return
         
         raise AttributeError("No such member")
+    
+    def toRaw (self):
+        return self.rawRead(self.type.calculateSize())
 
 class UnionType:
     def __init__ (self, members):
         self.members = members
     
+    def __call__ (self, addr):
+        instance = UnionInstance(addr)
+        instance.type = self
+
+        return instance
+    
     def generateInstance(self, value):
-        return UnionInstance(self, value)
+        instance = UnionInstance(0)
+        instance._generate(self, value)
+
+        return instance
     
     def calculateSize (self):
         size = 0
@@ -452,6 +536,12 @@ class UnionType:
                 return i.type
         
         raise AttributeError("No such member")
+    
+    def fromRaw (self, value):
+        instance = StructInstance(self)
+        instance.rawWrite(value, len(value))
+
+        return instance
         
 class FunctionDescriptor:
     def __init__ (self, min_params, ret_type = Int64, varargs = False):
@@ -459,7 +549,7 @@ class FunctionDescriptor:
         self.ret_type = ret_type
         self.varargs = varargs
 
-class Function (cvalue):
+class Function (CValue):
     def __init__ (self, addr, desc):
         self.value = addr
         self.descriptor = desc
