@@ -299,7 +299,7 @@ class String (Pointer):
     size = 8
 
     def __init__ (self, addr, c_string = True):
-        if type(addr) == str:
+        if type(addr) in [str, bytes]:
             self._fromPyString(addr)
             return
 
