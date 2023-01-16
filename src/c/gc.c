@@ -16,9 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "efunc.h"
 
 typedef struct {
     uint64_t addr;
