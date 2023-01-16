@@ -14,6 +14,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import types
+from . import library
 
-LIBC = types.Library("/usr/lib/libSystem.B.dylib")
+LIBC = library.Library("/usr/lib/libSystem.B.dylib")
