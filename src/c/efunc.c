@@ -29,6 +29,8 @@ uint64_t efunc_param_index;
 uint8_t efunc_float_result;
 
 extern void *efunc_callFunc (void *func, void *params[], uint64_t nparams, uint8_t stack_params, uint64_t stack_params_start, uint8_t float_result);
+int efunc_gc_addReference (uint64_t addr);
+int efunc_gc_removeReference (uint64_t addr);
 
 static PyObject *method_loadLibrary (PyObject *self, PyObject *args) {
     char *name;
@@ -95,19 +97,39 @@ static PyObject *method_allocateMemory (PyObject *self, PyObject *args) {
         return NULL;
     }
 
-    return PyLong_FromLong(malloc(size));
+    void *addr = malloc(size);
+    efunc_gc_addReference(addr);
+
+    return PyLong_FromLong(addr);
 }
 
 static PyObject *method_freeMemory (PyObject *self, PyObject *args) {
-    void *address;
+    void *addr;
 
-    if (!PyArg_ParseTuple(args, "L", &address)) {
+    if (!PyArg_ParseTuple(args, "L", &addr)) {
         return NULL;
     }
 
-    free(address);
+    free(addr);
+    efunc_gc_removeReference(addr);
 
     return Py_None;
+}
+
+static PyObject *method_freeMemoryIfReferenced (PyObject *self, PyObject *args) {
+    void *addr;
+
+    if (!PyArg_ParseTuple(args, "L", &addr)) {
+        return NULL;
+    }
+
+    int referenced = !efunc_gc_removeReference(addr);
+
+    if (referenced) {
+        free(addr);
+    }
+
+    return PyLong_FromLong(referenced);
 }
 
 static PyObject *method_setFuncCallSpecs (PyObject *self, PyObject *args) {
@@ -156,6 +178,7 @@ static PyMethodDef efunc_methods[] = {
     {"readMemory", method_readMemory, METH_VARARGS},
     {"allocateMemory", method_allocateMemory, METH_VARARGS},
     {"freeMemory", method_freeMemory, METH_VARARGS},
+    {"freeMemoryIfReferenced", method_freeMemoryIfReferenced, METH_VARARGS},
     {"setFuncCallSpecs", method_setFuncCallSpecs, METH_VARARGS},
     {"addFuncCallParam", method_addFuncCallParam, METH_VARARGS},
     {"callFunc", method_callFunc, METH_NOARGS},

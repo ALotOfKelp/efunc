@@ -223,11 +223,15 @@ class PointerType:
 
 class Pointer (CValue):
     size = 8
+    pointer = True
 
     def __init__ (self, addr, layers, final_type):
         self.value = addr
         self.layers = layers
         self.final_type = final_type
+    
+    def __del__ (self):
+        _efunc.freeMemoryIfReferenced(self.value)
     
     def __str__ (self):
         return str(self.value)
@@ -268,7 +272,14 @@ class Pointer (CValue):
         return Pointer.fromRaw(raw_value)
     
     def write (self, value, offset = 0):
-        return _efunc.writeMemory(self.value + offset, cvalue(value).toRaw(), cvalue(value).size)
+        temp = cvalue(value)
+
+        if type(temp) == String:
+            value = temp.read()
+        else:
+            value = temp.toRaw()
+
+        return _efunc.writeMemory(self.value + offset, value, len(value))
     
     def rawWrite (self, value, size, offset = 0):
         return _efunc.writeMemory(self.value + offset, value, size)
@@ -320,7 +331,6 @@ class String (Pointer):
 
         if c_string:
             value += b'\0'
-            self.len += 1
 
         Pointer.__init__(self, _efunc.allocateMemory(len(value) + int(c_string)), 1, Char)
         self.rawWrite(value, len(value))
@@ -331,7 +341,7 @@ class String (Pointer):
 
         while byte != b'\0':
             len += 1
-            byte = self.follow(len)
+            byte = self.follow(len).toRaw()
         
         if set:
             self.len = len
