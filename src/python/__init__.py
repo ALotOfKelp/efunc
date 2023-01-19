@@ -24,5 +24,5 @@ import warnings
 warnings.filterwarnings("ignore", category = DeprecationWarning)
 
 from . import types
-from . import clib
+from . import libc
 from . import library
