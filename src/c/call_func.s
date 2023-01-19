@@ -60,12 +60,8 @@ L._efunc_callFunc.odd_stack:
     b.eq L._efunc_callFunc.loop1.done
 
 L._efunc_callFunc.loop1:
-    sub x3, x11, x13
-    sub x3, x3, x9
     mov x4, sp
-    
-    add x3, x3, x4
-    
+    add x3, x2, x4
     cmp x3, x29
     b.ge L._efunc_callFunc.loop1.done
 
