@@ -577,13 +577,16 @@ class Function (CValue):
         return float(int(self))
     
     def __call__ (self, *args):
+        params = []
         _efunc.setFuncCallSpecs(self.value, len(args), (len(args) - self.descriptor.min_params) if self.descriptor.varargs else 0, self.descriptor.min_params, int(hasattr(self.descriptor.ret_type, "_float")))
-        
+
         for value in args:
-            _efunc.addFuncCallParam(cvalue(value))
+            params.append(cvalue(value))
+            _efunc.addFuncCallParam(params[-1].value)
         
         ret = _efunc.callFunc()
         _efunc.cleanCallSpecs()
+        del params
         
         if hasattr(self.descriptor.ret_type, "_float"):
             temp = self.descriptor.ret_type(1.0)
