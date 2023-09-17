@@ -1,2 +1,4 @@
 # efunc
- External function access for python
+External function access for python
+
+(Documentation on its way)
